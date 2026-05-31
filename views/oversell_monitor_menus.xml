@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── Top-level app menu ────────────────────────────────────────────── -->
+    <menuitem id="menu_oversell_root"
+              name="Oversell Monitor"
+              sequence="75"
+              web_icon="oversell_monitor,static/src/img/icon.png"/>
+
+    <menuitem id="menu_oversell_main"
+              name="Oversell Monitor"
+              parent="menu_oversell_root"
+              sequence="10"/>
+
+    <menuitem id="menu_oversell_report"
+              name="Oversell &amp; Out-of-Stock Orders"
+              parent="menu_oversell_main"
+              action="action_oversell_monitor"
+              sequence="10"/>
+
+
+</odoo>

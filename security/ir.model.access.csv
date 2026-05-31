@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_oversell_monitor_user,oversell.monitor.line user,model_oversell_monitor_line,base.group_user,1,0,0,0
+access_oversell_monitor_manager,oversell.monitor.line manager,model_oversell_monitor_line,stock.group_stock_manager,1,0,0,0

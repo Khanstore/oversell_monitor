@@ -1,0 +1,11 @@
+/* Oversell Monitor – backend styles */
+
+/* Highlight deficit column */
+.o_field_widget.o_field_float[name="deficit_qty"] .o_field_number {
+    font-weight: 600;
+}
+
+/* Make the list header stand out slightly */
+.o_oversell_monitor .o_list_view .o_column_headers th {
+    background-color: #f8f5ff;
+}
