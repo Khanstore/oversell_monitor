@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ─── Top-level app menu ────────────────────────────────────────────── -->
     <menuitem id="menu_oversell_root"
               name="Oversell Monitor"
               sequence="75"
@@ -12,11 +11,28 @@
               parent="menu_oversell_root"
               sequence="10"/>
 
-    <menuitem id="menu_oversell_report"
-              name="Oversell &amp; Out-of-Stock Orders"
+    <menuitem id="menu_oversell_live"
+              name="Live Oversell Orders"
               parent="menu_oversell_main"
               action="action_oversell_monitor"
               sequence="10"/>
 
+    <menuitem id="menu_oversell_dashboard"
+              name="Dashboard &amp; Analysis"
+              parent="menu_oversell_main"
+              action="action_oversell_dashboard"
+              sequence="20"/>
+
+    <menuitem id="menu_oversell_history"
+              name="History Log"
+              parent="menu_oversell_main"
+              action="action_oversell_history"
+              sequence="30"/>
+
+    <menuitem id="menu_oversell_config"
+              name="Settings"
+              parent="menu_oversell_main"
+              action="action_oversell_config"
+              sequence="99"/>
 
 </odoo>

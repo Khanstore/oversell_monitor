@@ -1,41 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- List View -->
     <record id="view_oversell_monitor_list" model="ir.ui.view">
         <field name="name">oversell.monitor.line.list</field>
         <field name="model">oversell.monitor.line</field>
         <field name="arch" type="xml">
             <list string="Oversell &amp; Out-of-Stock Orders"
-                  default_group_by="vendor_name"
+                  default_group_by="vendor_id"
                   decoration-danger="qty_on_hand &lt;= 0"
                   decoration-warning="qty_on_hand &gt; 0 and deficit_qty &gt; 0"
                   create="false" edit="false" delete="false">
 
+                <header>
+                    <button name="action_create_po"
+                            string="Create Purchase Order"
+                            type="object"
+                            class="btn-primary"/>
+                    <button name="action_send_vendor_alert"
+                            string="Send Vendor Alert"
+                            type="object"/>
+                </header>
+
                 <field name="order_date" string="Order Date" optional="show"/>
-                <field name="order_id" string="Order" widget="many2one" options="{'no_open': false}"/>
+                <field name="order_id" string="Order" widget="many2one"
+                       options="{'no_open': false}"/>
                 <field name="order_state" string="Status" widget="badge"
                        decoration-success="order_state == 'sale'"
                        decoration-info="order_state == 'sent'"
                        decoration-muted="order_state == 'draft'"/>
-                <field name="product_id" string="Product" widget="many2one" options="{'no_open': false}"/>
+                <field name="product_id" string="Product" widget="many2one"
+                       options="{'no_open': false}"/>
                 <field name="default_code" string="SKU" optional="show"/>
-                <field name="vendor_id" string="Vendor" widget="many2one" options="{'no_open': false}"/>
+                <field name="vendor_id" string="Vendor" widget="many2one"
+                       options="{'no_open': false}"/>
+                <field name="vendor_name" column_invisible="1"/>
                 <field name="vendor_area" string="Area" optional="show"/>
+                <field name="warehouse_id" string="Warehouse" optional="hide"/>
+                <field name="company_id" string="Company" optional="hide"/>
                 <field name="ordered_qty" string="Ordered" sum="Total Ordered"/>
                 <field name="qty_on_hand" string="In Stock"/>
                 <field name="deficit_qty" string="Deficit" sum="Total Deficit"
                        decoration-danger="deficit_qty &gt; 0"/>
+                <field name="min_qty_threshold" string="Min Threshold" optional="hide"/>
+                <field name="restock_eta" string="Restock ETA" optional="show"
+                       decoration-warning="restock_eta and restock_eta &gt; context_today()"
+                       decoration-success="restock_eta and restock_eta &lt;= context_today()"/>
+                <field name="open_po_id" string="Open PO" widget="many2one"
+                       options="{'no_open': false}" optional="show"/>
+                <field name="delivery_status" string="Delivery" optional="show"
+                       widget="badge"
+                       decoration-success="delivery_status == 'done'"
+                       decoration-warning="delivery_status in ['waiting','confirmed']"
+                       decoration-danger="delivery_status == 'none'"
+                       decoration-info="delivery_status == 'assigned'"/>
+                <field name="picking_id" string="Delivery Order" widget="many2one"
+                       options="{'no_open': false}" optional="hide"/>
                 <field name="avg_cost" string="Avg Cost" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="last_purchase_price" string="Last Purchase" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="currency_id" column_invisible="1"/>
+
+                <button name="action_view_purchase_history"
+                        string="Purchase History"
+                        type="object"
+                        icon="fa-history"
+                        title="View purchase history for this product"/>
+
             </list>
         </field>
     </record>
 
-    <!-- Search View -->
     <record id="view_oversell_monitor_search" model="ir.ui.view">
         <field name="name">oversell.monitor.line.search</field>
         <field name="model">oversell.monitor.line</field>
@@ -47,6 +82,8 @@
                 <field name="vendor_id" string="Vendor"/>
                 <field name="vendor_area" string="Area"/>
                 <field name="order_id" string="Order Reference"/>
+                <field name="warehouse_id" string="Warehouse"/>
+                <field name="company_id" string="Company"/>
 
                 <filter string="Today" name="filter_today"
                         domain="[('order_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
@@ -55,10 +92,17 @@
                 <filter string="This Month" name="filter_month"
                         domain="[('order_date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
                 <separator/>
-                <filter string="Out of Stock (0 on hand)" name="filter_oos"
+                <filter string="Out of Stock" name="filter_oos"
                         domain="[('qty_on_hand', '&lt;=', 0)]"/>
                 <filter string="Partial Oversell" name="filter_partial"
                         domain="[('qty_on_hand', '&gt;', 0), ('deficit_qty', '&gt;', 0)]"/>
+                <filter string="Unknown Vendor" name="filter_unknown_vendor"
+                        domain="[('vendor_id', '=', False)]"/>
+                <separator/>
+                <filter string="No Restock ETA" name="filter_no_eta"
+                        domain="[('restock_eta', '=', False)]"/>
+                <filter string="ETA Overdue" name="filter_eta_overdue"
+                        domain="[('restock_eta', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
                 <separator/>
                 <filter string="Confirmed Orders" name="filter_confirmed"
                         domain="[('order_state', 'in', ['sale', 'done'])]"/>
@@ -68,19 +112,22 @@
                             context="{'group_by': 'vendor_id'}"/>
                     <filter string="Area" name="group_area"
                             context="{'group_by': 'vendor_area'}"/>
+                    <filter string="Warehouse" name="group_warehouse"
+                            context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Company" name="group_company"
+                            context="{'group_by': 'company_id'}"/>
                     <filter string="Order Date" name="group_date"
                             context="{'group_by': 'order_date:day'}"/>
                     <filter string="Product" name="group_product"
                             context="{'group_by': 'product_id'}"/>
-                    <filter string="Order Status" name="group_state"
-                            context="{'group_by': 'order_state'}"/>
+                    <filter string="Delivery Status" name="group_delivery"
+                            context="{'group_by': 'delivery_status'}"/>
                 </group>
 
             </search>
         </field>
     </record>
 
-    <!-- Action -->
     <record id="action_oversell_monitor" model="ir.actions.act_window">
         <field name="name">Oversell &amp; Out-of-Stock Orders</field>
         <field name="res_model">oversell.monitor.line</field>
@@ -97,9 +144,9 @@
                 No oversell or out-of-stock orders found
             </p>
             <p>
-                This report shows orders where products were sold beyond available
-                stock. Check your date filter or confirm that Continue Selling
-                is enabled on out-of-stock products.
+                This report shows orders where products were sold beyond available stock.
+                Check your date filter or confirm that Continue Selling is enabled on
+                out-of-stock products.
             </p>
         </field>
     </record>

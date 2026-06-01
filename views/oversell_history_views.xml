@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_oversell_history_list" model="ir.ui.view">
+        <field name="name">oversell.history.list</field>
+        <field name="model">oversell.history</field>
+        <field name="arch" type="xml">
+            <list string="Oversell History" default_order="event_date desc"
+                  decoration-success="po_created == True"
+                  decoration-warning="po_created == False"
+                  create="false" edit="false">
+                <field name="event_date" string="Logged On"/>
+                <field name="order_id" string="Sale Order" widget="many2one" options="{'no_open': false}"/>
+                <field name="order_name" string="Order Ref" optional="hide"/>
+                <field name="product_id" string="Product" widget="many2one" options="{'no_open': false}"/>
+                <field name="vendor_id" string="Vendor" widget="many2one" options="{'no_open': false}"/>
+                <field name="vendor_area" string="Area" optional="show"/>
+                <field name="ordered_qty" string="Ordered" sum="Total"/>
+                <field name="stock_at_order" string="Stock at Order"/>
+                <field name="deficit_qty" string="Deficit" sum="Total Deficit"
+                       decoration-danger="deficit_qty &gt; 0"/>
+                <field name="avg_cost" string="Avg Cost" widget="monetary"
+                       options="{'currency_field': 'currency_id'}" optional="show"/>
+                <field name="last_purchase_price" string="Last Purchase" widget="monetary"
+                       options="{'currency_field': 'currency_id'}" optional="show"/>
+                <field name="po_created" string="PO Created" widget="boolean_toggle"/>
+                <field name="po_id" string="Purchase Order" widget="many2one"
+                       options="{'no_open': false}" optional="show"/>
+                <field name="alert_sent" string="Alert Sent" widget="boolean_toggle"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_oversell_history_search" model="ir.ui.view">
+        <field name="name">oversell.history.search</field>
+        <field name="model">oversell.history</field>
+        <field name="arch" type="xml">
+            <search string="Search Oversell History">
+                <field name="product_id"/>
+                <field name="vendor_id"/>
+                <field name="vendor_area" string="Area"/>
+                <field name="order_id"/>
+                <filter string="PO Not Created" name="no_po"
+                        domain="[('po_created', '=', False)]"/>
+                <filter string="Alert Not Sent" name="no_alert"
+                        domain="[('alert_sent', '=', False)]"/>
+                <filter string="This Month" name="this_month"
+                        domain="[('event_date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                <group expand="1" string="Group By">
+                    <filter string="Vendor" name="group_vendor"
+                            context="{'group_by': 'vendor_id'}"/>
+                    <filter string="Area" name="group_area"
+                            context="{'group_by': 'vendor_area'}"/>
+                    <filter string="Month" name="group_month"
+                            context="{'group_by': 'event_date:month'}"/>
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_oversell_history" model="ir.actions.act_window">
+        <field name="name">Oversell History Log</field>
+        <field name="res_model">oversell.history</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_oversell_history_list"/>
+        <field name="search_view_id" ref="view_oversell_history_search"/>
+        <field name="context">{'search_default_group_vendor': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No oversell history yet</p>
+            <p>This log is created automatically when oversell events are detected.
+               Records persist even after stock is replenished.</p>
+        </field>
+    </record>
+
+</odoo>

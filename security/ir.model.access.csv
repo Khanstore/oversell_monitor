@@ -1,3 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_oversell_monitor_user,oversell.monitor.line user,model_oversell_monitor_line,base.group_user,1,0,0,0
-access_oversell_monitor_manager,oversell.monitor.line manager,model_oversell_monitor_line,stock.group_stock_manager,1,0,0,0
+access_oversell_history_user,oversell.history user,model_oversell_history,base.group_user,1,0,0,0
+access_oversell_history_manager,oversell.history manager,model_oversell_history,stock.group_stock_manager,1,1,1,1
+access_oversell_create_po_wizard,oversell.create.po.wizard user,model_oversell_create_po_wizard,base.group_user,1,1,1,1
+access_oversell_create_po_wizard_line,oversell.create.po.wizard.line user,model_oversell_create_po_wizard_line,base.group_user,1,1,1,1
+access_oversell_send_alert_wizard,oversell.send.alert.wizard user,model_oversell_send_alert_wizard,base.group_user,1,1,1,1
+access_oversell_send_alert_wizard_line,oversell.send.alert.wizard.line user,model_oversell_send_alert_wizard_line,base.group_user,1,1,1,1

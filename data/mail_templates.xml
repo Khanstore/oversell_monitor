@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="mail_template_vendor_alert" model="mail.template">
+        <field name="name">Oversell Monitor: Vendor Restock Alert</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Urgent Restock Required — {{ object.name }}</field>
+        <field name="body_html"><![CDATA[
+<p>Dear {{ object.name }},</p>
+<p>We are writing to inform you that one or more products supplied by your company
+have been oversold on our eCommerce store and require urgent restocking.</p>
+<p>Please review and confirm your earliest possible delivery date.
+Our team will follow up with a formal Purchase Order shortly.</p>
+<p>Thank you for your prompt attention.</p>
+<p>Best regards,<br/>{{ user.name }}<br/>{{ user.company_id.name }}</p>
+        ]]></field>
+        <field name="auto_delete" eval="True"/>
+    </record>
+
+    <record id="mail_template_customer_alert" model="mail.template">
+        <field name="name">Oversell Monitor: Customer Delay Notice</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Important Update on Your Order</field>
+        <field name="body_html"><![CDATA[
+<p>Dear {{ object.name }},</p>
+<p>Thank you for your recent order. We want to let you know that one or more
+items in your order are currently out of stock. We are working with our
+suppliers to fulfil your order as quickly as possible.</p>
+<p>We apologise for any inconvenience and will keep you updated on the
+expected delivery date. Please contact us if you have any questions.</p>
+<p>Best regards,<br/>{{ user.name }}<br/>{{ user.company_id.name }}</p>
+        ]]></field>
+        <field name="auto_delete" eval="True"/>
+    </record>
+
+    <record id="mail_template_digest" model="mail.template">
+        <field name="name">Oversell Monitor: Daily/Weekly Digest</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="subject">Oversell &amp; Out-of-Stock Digest</field>
+        <field name="body_html"><![CDATA[
+<p>Dear {{ object.name }},</p>
+<p>Here is your oversell and out-of-stock digest.</p>
+<p>Please log in to Odoo and navigate to <strong>Oversell Monitor</strong>
+to review all open oversell lines, create purchase orders, and send
+vendor alerts.</p>
+<p>Best regards,<br/>{{ user.company_id.name }} — Automated Report</p>
+        ]]></field>
+        <field name="auto_delete" eval="True"/>
+    </record>
+
+</odoo>

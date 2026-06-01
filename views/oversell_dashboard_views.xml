@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_oversell_dashboard_graph" model="ir.ui.view">
+        <field name="name">oversell.monitor.line.graph</field>
+        <field name="model">oversell.monitor.line</field>
+        <field name="arch" type="xml">
+            <graph string="Oversell Analysis" type="bar" stacked="0">
+                <field name="vendor_id" type="row"/>
+                <field name="deficit_qty" type="measure"/>
+                <field name="ordered_qty" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_oversell_dashboard_pivot" model="ir.ui.view">
+        <field name="name">oversell.monitor.line.pivot</field>
+        <field name="model">oversell.monitor.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Oversell Pivot" display_quantity="true">
+                <field name="vendor_id" type="row"/>
+                <field name="vendor_area" type="row"/>
+                <field name="order_date" type="col" interval="month"/>
+                <field name="deficit_qty" type="measure"/>
+                <field name="ordered_qty" type="measure"/>
+                <field name="qty_on_hand" type="measure"/>
+                <field name="avg_cost" type="measure"/>
+                <field name="last_purchase_price" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_oversell_dashboard" model="ir.actions.act_window">
+        <field name="name">Dashboard &amp; Analysis</field>
+        <field name="res_model">oversell.monitor.line</field>
+        <field name="view_mode">graph,pivot,list</field>
+        <field name="search_view_id" ref="view_oversell_monitor_search"/>
+        <field name="context">{
+            'search_default_filter_month': 1,
+            'search_default_group_vendor': 1
+        }</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_oversell_send_alert_wizard_form" model="ir.ui.view">
+        <field name="name">oversell.send.alert.wizard.form</field>
+        <field name="model">oversell.send.alert.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send Oversell Alert">
+                <sheet>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fa fa-envelope"/> Alerts will be sent via email using the configured mail server.
+                        Make sure recipient email addresses are set on vendor and customer records.
+                    </div>
+                    <group>
+                        <field name="alert_type" string="Send Alert To" widget="radio"/>
+                        <field name="subject" string="Email Subject"/>
+                    </group>
+                    <group string="Lines to Alert">
+                        <field name="line_ids" nolabel="1">
+                            <list string="Lines">
+                                <field name="product_id" readonly="1"/>
+                                <field name="vendor_id"/>
+                                <field name="order_id" readonly="1"/>
+                                <field name="deficit_qty" readonly="1" string="Deficit"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Custom Message (optional)">
+                        <field name="message_body" nolabel="1" widget="html"
+                               placeholder="Leave blank to use the default email template..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_send" string="Send Alert(s)"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>
