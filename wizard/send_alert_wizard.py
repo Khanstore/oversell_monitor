@@ -1,4 +1,5 @@
 from odoo import models, fields, api, _
+from markupsafe import escape
 
 
 class SendAlertWizardLine(models.TransientModel):
@@ -37,21 +38,24 @@ class SendAlertWizard(models.TransientModel):
         return res
 
     def _build_vendor_body(self, line):
-        product_name = line.product_id.display_name or ''
+        product_name = escape(line.product_id.display_name or '')
+        vendor_name = escape(line.vendor_id.name or 'Supplier')
+        company_name = escape(self.env.company.name or '')
         deficit = line.deficit_qty
         return (
-            f'<p>Dear {line.vendor_id.name},</p>'
-            f'<p>We require urgent restocking of <strong>{product_name}</strong> '
-            f'(deficit: <strong>{deficit}</strong> units). '
+            f'<p>Dear {vendor_name},</p>'
+            f'<p>We require restocking of <strong>{product_name}</strong> '
+            f'(estimated shortage: <strong>{deficit}</strong> units). '
             f'Please confirm your earliest delivery date.</p>'
-            f'<p>Our team will send a formal Purchase Order shortly.</p>'
-            f'<p>Best regards,<br/>{self.env.company.name}</p>'
+            f'<p>A formal Purchase Order will be sent separately.</p>'
+            f'<p>Best regards,<br/>{company_name}</p>'
         )
 
     def _build_customer_body(self, line):
-        customer_name = line.order_id.partner_id.name if line.order_id else 'Customer'
-        product_name = line.product_id.display_name or ''
-        order_name = line.order_id.name if line.order_id else ''
+        customer_name = escape(line.order_id.partner_id.name if line.order_id else 'Customer')
+        product_name = escape(line.product_id.display_name or '')
+        order_name = escape(line.order_id.name if line.order_id else '')
+        company_name = escape(self.env.company.name or '')
         return (
             f'<p>Dear {customer_name},</p>'
             f'<p>We are writing regarding your order <strong>{order_name}</strong>. '
@@ -59,7 +63,7 @@ class SendAlertWizard(models.TransientModel):
             f'We are working to fulfil your order as quickly as possible and will '
             f'keep you updated on the expected delivery date.</p>'
             f'<p>We apologise for any inconvenience.</p>'
-            f'<p>Best regards,<br/>{self.env.company.name}</p>'
+            f'<p>Best regards,<br/>{company_name}</p>'
         )
 
     def action_send(self):
@@ -70,7 +74,7 @@ class SendAlertWizard(models.TransientModel):
                     'subject': self.subject,
                     'body_html': self.message_body or self._build_vendor_body(line),
                     'email_to': line.vendor_id.email,
-                    'email_from': self.env.user.email or self.env.company.email,
+                    'email_from': self.env.user.email or self.env.company.email or False,
                 }).send()
 
             if self.alert_type in ('customer', 'both') and line.order_id:
@@ -80,7 +84,7 @@ class SendAlertWizard(models.TransientModel):
                         'subject': self.subject,
                         'body_html': self.message_body or self._build_customer_body(line),
                         'email_to': customer.email,
-                        'email_from': self.env.user.email or self.env.company.email,
+                        'email_from': self.env.user.email or self.env.company.email or False,
                     }).send()
 
         return {'type': 'ir.actions.act_window_close'}
@@ -98,9 +102,11 @@ class SendAlertWizard(models.TransientModel):
 
         # Build summary table
         rows = ''.join(
-            f'<tr><td>{l.vendor_name}</td><td>{l.product_name}</td>'
-            f'<td>{l.ordered_qty}</td><td>{l.qty_on_hand}</td>'
-            f'<td>{l.deficit_qty}</td><td>{l.order_date}</td></tr>'
+            '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (
+                escape(l.vendor_name or ''), escape(l.product_name or ''),
+                escape(str(l.ordered_qty)), escape(str(l.qty_on_hand)),
+                escape(str(l.deficit_qty)), escape(str(l.order_date or ''))
+            )
             for l in lines
         )
         body = f'''
@@ -121,5 +127,5 @@ class SendAlertWizard(models.TransientModel):
                     'subject': f'Oversell Digest — {len(lines)} lines need attention',
                     'body_html': body,
                     'email_to': user.email,
-                    'email_from': self.env.company.email or '',
+                    'email_from': self.env.company.email or self.env.user.email or False,
                 }).send()

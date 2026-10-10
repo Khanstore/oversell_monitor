@@ -50,6 +50,15 @@ class OversellSettings(models.TransientModel):
         self._set_param('global_min_threshold', self.global_min_threshold)
         self._set_param('auto_notify_vendor', self.auto_notify_vendor)
         self._set_param('auto_notify_customer', self.auto_notify_customer)
+
+        # Keep the scheduled action in sync with the saved settings.
+        cron = self.env.ref('oversell_monitor.ir_cron_oversell_digest', raise_if_not_found=False)
+        if cron:
+            cron.sudo().write({
+                'active': self.digest_enabled,
+                'interval_number': 7 if self.digest_frequency == 'weekly' else 1,
+                'interval_type': 'days',
+            })
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',

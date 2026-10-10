@@ -8,16 +8,16 @@
             <form string="Create Purchase Order">
                 <sheet>
                     <div class="alert alert-info" role="alert">
-                        <i class="fa fa-info-circle"/> Review and adjust quantities before creating Purchase Orders.
-                        Lines are grouped by vendor — one PO will be created per vendor.
+                        <i class="fa fa-info-circle"/>
+                        Review and adjust quantities. One Purchase Order will be created per vendor.
                     </div>
                     <group>
                         <field name="scheduled_date" string="Requested Delivery Date"/>
-                        <field name="note" string="Notes / Instructions" placeholder="Optional notes for the vendor..."/>
+                        <field name="note" string="Notes" placeholder="Optional notes for the vendor..."/>
                     </group>
-                    <field name="line_ids">
+                    <field name="line_ids" nolabel="1">
                         <list editable="bottom" string="Products to Order">
-                            <field name="product_id" readonly="1"/>
+                            <field name="product_id" readonly="0"/>
                             <field name="vendor_id"/>
                             <field name="deficit_qty" string="Deficit" readonly="1"/>
                             <field name="qty_to_order" string="Qty to Order"/>
@@ -28,7 +28,7 @@
                 <footer>
                     <button name="action_create_po" string="Create Purchase Order(s)"
                             type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
                 </footer>
             </form>
         </field>

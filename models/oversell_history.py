@@ -9,9 +9,9 @@ class OversellHistory(models.Model):
     _rec_name = 'order_id'
 
     event_date = fields.Datetime(string='Event Date', default=fields.Datetime.now, readonly=True)
-    order_id = fields.Many2one('sale.order', string='Sale Order', readonly=True, ondelete='cascade')
+    order_id = fields.Many2one('sale.order', string='Sale Order', readonly=True, ondelete='set null')
     order_name = fields.Char(string='Order Ref', readonly=True)
-    product_id = fields.Many2one('product.product', string='Product', readonly=True)
+    product_id = fields.Many2one('product.product', string='Product', readonly=True, ondelete='set null')
     vendor_id = fields.Many2one('res.partner', string='Vendor', readonly=True)
     vendor_area = fields.Char(string='Area', readonly=True)
     ordered_qty = fields.Float(string='Ordered Qty', digits='Product Unit of Measure', readonly=True)

@@ -7,11 +7,9 @@
         <field name="arch" type="xml">
             <form string="Oversell Monitor Settings">
                 <sheet>
-                    <div class="o_setting_container">
-
-                        <div class="o_settings_section">
+                    <div class="o_settings_section">
                             <h2>Digest Emails</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
                                         <field name="digest_enabled" widget="boolean_toggle"/>
@@ -35,7 +33,7 @@
 
                         <div class="o_settings_section">
                             <h2>Stock Thresholds</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane"/>
                                     <div class="o_setting_right_pane">
@@ -51,7 +49,7 @@
 
                         <div class="o_settings_section">
                             <h2>Automatic Notifications</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
                                         <field name="auto_notify_vendor" widget="boolean_toggle"/>
@@ -76,8 +74,6 @@
                                 </div>
                             </div>
                         </div>
-
-                    </div>
                 </sheet>
                 <footer>
                     <button string="Save" name="action_save"

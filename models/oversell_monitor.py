@@ -19,8 +19,8 @@ class OversellMonitorLine(models.Model):
     product_id = fields.Many2one('product.product', string='Product', readonly=True)
     product_name = fields.Char(string='Product Name', readonly=True)
     default_code = fields.Char(string='SKU', readonly=True)
-    ordered_qty = fields.Float(string='Ordered Qty', digits='Product Unit of Measure', readonly=True)
-    qty_on_hand = fields.Float(string='Current Stock', digits='Product Unit of Measure', readonly=True)
+    ordered_qty = fields.Float(string='Outstanding Qty', digits='Product Unit of Measure', readonly=True)
+    qty_on_hand = fields.Float(string='Free Stock', digits='Product Unit of Measure', readonly=True)
     deficit_qty = fields.Float(string='Deficit', digits='Product Unit of Measure', readonly=True)
     min_qty_threshold = fields.Float(string='Min Threshold', readonly=True)
     avg_cost = fields.Float(string='Avg Cost', digits='Product Price', readonly=True)
@@ -35,98 +35,181 @@ class OversellMonitorLine(models.Model):
     picking_id = fields.Many2one('stock.picking', string='Delivery Order', readonly=True)
 
     def init(self):
+        """Build a live report using free stock in the sales order warehouse.
+
+        Demand is converted to the product's default UoM and allocated oldest
+        first within each company/warehouse/product bucket. This avoids
+        counting the same available stock independently against every order.
+        """
         tools.drop_view_if_exists(self.env.cr, self._table)
         self.env.cr.execute("""
             CREATE OR REPLACE VIEW %s AS (
+                WITH global_setting AS (
+                    SELECT COALESCE(
+                        NULLIF(value, '')::numeric, 0
+                    ) AS min_threshold
+                    FROM ir_config_parameter
+                    WHERE key = 'oversell_monitor.global_min_threshold'
+                    LIMIT 1
+                ),
+                free_stock AS (
+                    SELECT
+                        sw.id AS warehouse_id,
+                        sw.company_id,
+                        sq.product_id,
+                        SUM(sq.quantity - sq.reserved_quantity) AS free_qty
+                    FROM stock_warehouse sw
+                    JOIN stock_location root ON root.id = sw.lot_stock_id
+                    JOIN stock_location sl
+                      ON sl.usage = 'internal'
+                     AND sl.parent_path LIKE root.parent_path || '%%'
+                    JOIN stock_quant sq
+                      ON sq.location_id = sl.id
+                     AND sq.company_id = sw.company_id
+                    GROUP BY sw.id, sw.company_id, sq.product_id
+                ),
+                demand AS (
+                    SELECT
+                        sol.id,
+                        so.id AS order_id,
+                        so.name AS order_name,
+                        so.date_order::date AS order_date,
+                        so.state AS order_state,
+                        so.company_id,
+                        so.warehouse_id,
+                        pp.id AS product_id,
+                        pt.name->>'en_US' AS product_name,
+                        pt.default_code,
+                        GREATEST(sol.product_uom_qty - COALESCE(sol.qty_delivered, 0), 0)
+                          * COALESCE(line_uom.factor, 1)
+                          / NULLIF(COALESCE(product_uom.factor, 1), 0) AS open_qty,
+                        COALESCE(fs.free_qty, 0) AS free_qty,
+                        GREATEST(
+                            COALESCE(pt.oversell_min_threshold, 0),
+                            COALESCE(orp.product_min_qty, 0),
+                            COALESCE((SELECT min_threshold FROM global_setting), 0)
+                        ) AS min_threshold,
+                        COALESCE((pp.standard_price->>so.company_id::text)::numeric,
+                                 (pp.standard_price->>'1')::numeric, 0) AS avg_cost,
+                        rc.id AS currency_id,
+                        vendor.partner_id AS vendor_id,
+                        COALESCE(rp.name, 'Unknown') AS vendor_name,
+                        COALESCE(rp.city, state.name, 'Unknown') AS vendor_area,
+                        last_po.price_unit AS last_purchase_price,
+                        open_po.date_planned::date AS restock_eta,
+                        open_po.po_id AS open_po_id,
+                        COALESCE(picking.state, 'none') AS delivery_status,
+                        picking.id AS picking_id,
+                        SUM(
+                            GREATEST(sol.product_uom_qty - COALESCE(sol.qty_delivered, 0), 0)
+                            * COALESCE(line_uom.factor, 1)
+                            / NULLIF(COALESCE(product_uom.factor, 1), 0)
+                        ) OVER (
+                            PARTITION BY so.company_id, so.warehouse_id, pp.id
+                            ORDER BY
+                                CASE WHEN so.state IN ('sale', 'done') THEN 0 ELSE 1 END,
+                                so.date_order, so.id, sol.id
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                        ) AS cumulative_demand
+                    FROM sale_order_line sol
+                    JOIN sale_order so ON so.id = sol.order_id
+                    JOIN product_product pp ON pp.id = sol.product_id
+                    JOIN product_template pt ON pt.id = pp.product_tmpl_id
+                    JOIN uom_uom line_uom ON line_uom.id = sol.product_uom
+                    JOIN uom_uom product_uom ON product_uom.id = pt.uom_id
+                    LEFT JOIN free_stock fs
+                      ON fs.product_id = pp.id
+                     AND fs.company_id = so.company_id
+                     AND fs.warehouse_id = so.warehouse_id
+                    LEFT JOIN stock_warehouse_orderpoint orp
+                      ON orp.product_id = pp.id
+                     AND orp.company_id = so.company_id
+                     AND (orp.location_id = (SELECT lot_stock_id FROM stock_warehouse WHERE id = so.warehouse_id)
+                          OR orp.location_id IS NULL)
+                    LEFT JOIN res_company company ON company.id = so.company_id
+                    LEFT JOIN res_currency rc ON rc.id = company.currency_id
+                    LEFT JOIN LATERAL (
+                        SELECT psi.partner_id
+                        FROM product_supplierinfo psi
+                        WHERE psi.product_tmpl_id = pt.id
+                          AND (psi.company_id IS NULL OR psi.company_id = so.company_id)
+                        ORDER BY psi.sequence, psi.id
+                        LIMIT 1
+                    ) vendor ON TRUE
+                    LEFT JOIN res_partner rp ON rp.id = vendor.partner_id
+                    LEFT JOIN res_country_state state ON state.id = rp.state_id
+                    LEFT JOIN LATERAL (
+                        SELECT pol.price_unit
+                        FROM purchase_order_line pol
+                        JOIN purchase_order po ON po.id = pol.order_id
+                        WHERE pol.product_id = pp.id
+                          AND po.company_id = so.company_id
+                          AND po.state IN ('purchase', 'done')
+                        ORDER BY po.date_approve DESC NULLS LAST, po.id DESC
+                        LIMIT 1
+                    ) last_po ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT pol.date_planned, po.id AS po_id
+                        FROM purchase_order_line pol
+                        JOIN purchase_order po ON po.id = pol.order_id
+                        WHERE pol.product_id = pp.id
+                          AND po.company_id = so.company_id
+                          AND po.state IN ('purchase', 'draft', 'sent')
+                          AND pol.date_planned IS NOT NULL
+                        ORDER BY pol.date_planned ASC, po.id
+                        LIMIT 1
+                    ) open_po ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT sp.id, sp.state
+                        FROM stock_picking sp
+                        WHERE sp.sale_id = so.id
+                          AND sp.picking_type_id IN (
+                              SELECT spt.id FROM stock_picking_type spt
+                              WHERE spt.code = 'outgoing'
+                          )
+                        ORDER BY sp.id DESC
+                        LIMIT 1
+                    ) picking ON TRUE
+                    WHERE so.state IN ('sent', 'sale', 'done')
+                      AND so.warehouse_id IS NOT NULL
+                      AND sol.product_id IS NOT NULL
+                      AND pt.type != 'service'
+                      AND GREATEST(sol.product_uom_qty - COALESCE(sol.qty_delivered, 0), 0) > 0
+                ),
+                allocated AS (
+                    SELECT demand.*,
+                        GREATEST(demand.cumulative_demand - demand.open_qty - demand.free_qty, 0) AS prior_shortage,
+                        GREATEST(demand.cumulative_demand - demand.free_qty, 0) AS total_shortage
+                    FROM demand
+                )
                 SELECT
-                    sol.id                              AS id,
-                    so.id                               AS order_id,
-                    so.name                             AS order_name,
-                    so.date_order::date                 AS order_date,
-                    so.state                            AS order_state,
-                    so.company_id                       AS company_id,
-                    COALESCE(sw.id, 1)                  AS warehouse_id,
-                    pp.id                               AS product_id,
-                    pt.name->>'en_US'                   AS product_name,
-                    pt.default_code                     AS default_code,
-                    sol.product_uom_qty                 AS ordered_qty,
-                    COALESCE(sq.qty_on_hand, 0)         AS qty_on_hand,
-                    GREATEST(sol.product_uom_qty - GREATEST(COALESCE(sq.qty_on_hand, 0), 0), 0) AS deficit_qty,
-                    COALESCE(orp.product_min_qty, 0)    AS min_qty_threshold,
-                    COALESCE((pp.standard_price->>so.company_id::text)::numeric,
-                             (pp.standard_price->>'1')::numeric, 0)  AS avg_cost,
-                    COALESCE(last_po.price_unit, 0)     AS last_purchase_price,
-                    rc.id                               AS currency_id,
-                    psi_p.id                            AS vendor_id,
-                    COALESCE(psi_p.name, 'Unknown')     AS vendor_name,
-                    COALESCE(psi_p.city, psi_p.state_id::text, 'Unknown') AS vendor_area,
-                    open_po.date_planned::date          AS restock_eta,
-                    open_po.po_id                       AS open_po_id,
-                    COALESCE(sp.state, 'none')          AS delivery_status,
-                    sp.id                               AS picking_id
-
-                FROM sale_order_line sol
-                JOIN sale_order so ON so.id = sol.order_id
-                JOIN product_product pp ON pp.id = sol.product_id
-                JOIN product_template pt ON pt.id = pp.product_tmpl_id
-                JOIN product_category pc ON pc.id = pt.categ_id
-
-                LEFT JOIN (
-                    SELECT sq2.product_id, SUM(sq2.quantity) AS qty_on_hand
-                    FROM stock_quant sq2
-                    JOIN stock_location sl ON sl.id = sq2.location_id AND sl.usage = 'internal'
-                    GROUP BY sq2.product_id
-                ) sq ON sq.product_id = pp.id
-
-                LEFT JOIN stock_warehouse sw ON sw.company_id = so.company_id
-
-                LEFT JOIN stock_warehouse_orderpoint orp
-                    ON orp.product_id = pp.id AND orp.company_id = so.company_id
-
-                LEFT JOIN LATERAL (
-                    SELECT pol.price_unit FROM purchase_order_line pol
-                    JOIN purchase_order po2 ON po2.id = pol.order_id
-                        AND po2.state IN ('purchase', 'done')
-                    WHERE pol.product_id = pp.id
-                    ORDER BY po2.date_approve DESC NULLS LAST LIMIT 1
-                ) last_po ON TRUE
-
-                LEFT JOIN product_supplierinfo psi ON psi.product_tmpl_id = pt.id
-                    AND psi.sequence = (
-                        SELECT MIN(psi2.sequence) FROM product_supplierinfo psi2
-                        WHERE psi2.product_tmpl_id = pt.id)
-                LEFT JOIN res_partner psi_p ON psi_p.id = psi.partner_id
-
-                LEFT JOIN res_company rco ON rco.id = so.company_id
-                LEFT JOIN res_currency rc ON rc.id = rco.currency_id
-
-                LEFT JOIN LATERAL (
-                    SELECT pol2.date_planned, po3.id AS po_id
-                    FROM purchase_order_line pol2
-                    JOIN purchase_order po3 ON po3.id = pol2.order_id
-                        AND po3.state IN ('purchase', 'draft', 'sent')
-                    WHERE pol2.product_id = pp.id AND pol2.date_planned IS NOT NULL
-                    ORDER BY pol2.date_planned ASC LIMIT 1
-                ) open_po ON TRUE
-
-                LEFT JOIN LATERAL (
-                    SELECT sp2.id, sp2.state FROM stock_picking sp2
-                    WHERE sp2.sale_id = so.id
-                      AND EXISTS (
-                          SELECT 1 FROM stock_picking_type spt
-                          WHERE spt.id = sp2.picking_type_id AND spt.code = 'outgoing')
-                    ORDER BY sp2.id DESC LIMIT 1
-                ) sp ON TRUE
-
-                WHERE so.state NOT IN ('cancel', 'draft')
-                  AND sol.product_id IS NOT NULL
-                  AND pt.type != 'service'
-                  AND pc.complete_name NOT ILIKE '%%Deliveries%%'
-                  AND pc.complete_name NOT ILIKE '%%Delivery%%'
-                  AND (
-                      COALESCE(sq.qty_on_hand, 0) <= 0
-                      OR sol.product_uom_qty > GREATEST(COALESCE(sq.qty_on_hand, 0), 0)
-                  )
+                    id,
+                    order_id,
+                    order_name,
+                    order_date,
+                    order_state,
+                    company_id,
+                    warehouse_id,
+                    product_id,
+                    product_name,
+                    default_code,
+                    open_qty AS ordered_qty,
+                    free_qty AS qty_on_hand,
+                    GREATEST(total_shortage - prior_shortage, 0) AS deficit_qty,
+                    min_threshold AS min_qty_threshold,
+                    avg_cost,
+                    COALESCE(last_purchase_price, 0) AS last_purchase_price,
+                    currency_id,
+                    vendor_id,
+                    vendor_name,
+                    vendor_area,
+                    restock_eta,
+                    open_po_id,
+                    delivery_status,
+                    picking_id
+                FROM allocated
+                WHERE total_shortage > prior_shortage
+                   OR free_qty <= min_threshold
             )
         """ % self._table)
 
@@ -138,12 +221,8 @@ class OversellMonitorLine(models.Model):
             'view_mode': 'form',
             'target': 'new',
             'context': {
-                'default_line_ids': [(0, 0, {
-                    'product_id': rec.product_id.id,
-                    'vendor_id': rec.vendor_id.id if rec.vendor_id else False,
-                    'deficit_qty': rec.deficit_qty,
-                    'last_purchase_price': rec.last_purchase_price,
-                }) for rec in self],
+                'active_ids': self.ids,
+                'active_model': 'oversell.monitor.line',
             },
         }
 

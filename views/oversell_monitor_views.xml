@@ -72,7 +72,7 @@
                                     <div class="fw-bold"><field name="ordered_qty"/></div>
                                 </div>
                                 <div class="flex-fill bg-light rounded p-1">
-                                    <div class="small text-muted">In Stock</div>
+                                    <div class="small text-muted">Free Stock</div>
                                     <div t-attf-class="fw-bold #{record.qty_on_hand.raw_value &lt;= 0 ? 'text-danger' : 'text-warning'}">
                                         <field name="qty_on_hand"/>
                                     </div>
@@ -180,8 +180,8 @@
                 <field name="vendor_area" string="Area" optional="show"/>
                 <field name="warehouse_id" string="Warehouse" optional="hide"/>
                 <field name="company_id" string="Company" optional="hide"/>
-                <field name="ordered_qty" string="Ordered" sum="Total Ordered"/>
-                <field name="qty_on_hand" string="In Stock"/>
+                <field name="ordered_qty" string="Outstanding" sum="Total Ordered"/>
+                <field name="qty_on_hand" string="Free Stock"/>
                 <field name="deficit_qty" string="Deficit" sum="Total Deficit"
                        decoration-danger="deficit_qty &gt; 0"/>
                 <field name="min_qty_threshold" string="Min Threshold" optional="hide"/>
@@ -246,6 +246,9 @@
                 <separator/>
                 <filter string="Confirmed Orders" name="filter_confirmed"
                         domain="[('order_state', 'in', ['sale', 'done'])]"/>
+                <separator/>
+                <filter string="Exclude Done Deliveries" name="filter_exclude_done"
+                        domain="[('delivery_status', '!=', 'done')]"/>
 
                 <group expand="1" string="Group By">
                     <filter string="Vendor" name="group_vendor"
@@ -278,7 +281,8 @@
         <field name="context">{
             'search_default_filter_week': 1,
             'search_default_group_area': 1,
-            'search_default_filter_confirmed': 1
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_exclude_done': 1
         }</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

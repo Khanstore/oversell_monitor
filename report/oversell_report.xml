@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Paper format: A4 Landscape -->
+    <record id="paperformat_oversell_landscape" model="report.paperformat">
+        <field name="name">A4 Landscape – Oversell Monitor</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">10</field>
+        <field name="margin_bottom">10</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">3</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <!-- Report action -->
+    <record id="action_report_oversell_monitor" model="ir.actions.report">
+        <field name="name">Oversell &amp; Out-of-Stock Report</field>
+        <field name="model">oversell.monitor.line</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">oversell_monitor.report_oversell_monitor_template</field>
+        <field name="report_file">oversell_monitor.report_oversell_monitor_template</field>
+        <field name="paperformat_id" ref="paperformat_oversell_landscape"/>
+        <field name="binding_model_id" ref="model_oversell_monitor_line"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- QWeb template -->
+    <template id="report_oversell_monitor_template">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <style>
+                        body { font-family: Arial, sans-serif; font-size: 10px; }
+                        h2.report-title {
+                            font-size: 13px; font-weight: bold;
+                            text-align: center; margin-bottom: 4px;
+                        }
+                        .report-meta {
+                            text-align: center; font-size: 9px;
+                            color: #555; margin-bottom: 12px;
+                        }
+                        .area-header {
+                            background: #1a3a5c; color: #fff;
+                            font-weight: bold; font-size: 11px;
+                            padding: 4px 8px; margin-top: 12px;
+                            margin-bottom: 0;
+                        }
+                        table {
+                            width: 100%; border-collapse: collapse;
+                            margin-bottom: 6px;
+                        }
+                        thead tr th {
+                            background: #dce6f1;
+                            font-size: 9px; font-weight: bold;
+                            padding: 4px 6px; border: 0.5px solid #bbb;
+                            text-align: left;
+                        }
+                        tbody tr td {
+                            font-size: 9px; padding: 3px 6px;
+                            border: 0.5px solid #ddd; vertical-align: top;
+                        }
+                        tbody tr:nth-child(even) td { background: #f7f9fc; }
+                        tbody tr.danger td { color: #c0392b; }
+                        tbody tr.warning td { color: #e67e22; }
+                        tfoot tr td {
+                            font-size: 9px; font-weight: bold;
+                            padding: 3px 6px; border-top: 1.5px solid #888;
+                            background: #eaf0fb;
+                        }
+                        .text-right { text-align: right; }
+                        .text-center { text-align: center; }
+                        .badge-oos {
+                            background: #c0392b; color: #fff;
+                            border-radius: 3px; padding: 1px 5px; font-size: 8px;
+                        }
+                        .badge-partial {
+                            background: #e67e22; color: #fff;
+                            border-radius: 3px; padding: 1px 5px; font-size: 8px;
+                        }
+                        .page-footer {
+                            position: fixed; bottom: 0; width: 100%;
+                            font-size: 8px; color: #888;
+                            border-top: 0.5px solid #ccc; padding-top: 3px;
+                            display: flex; justify-content: space-between;
+                        }
+                    </style>
+
+                    <!-- Title -->
+                    <h2 class="report-title">Oversell &amp; Out-of-Stock Report</h2>
+                    <div class="report-meta">
+                        Generated: <t t-esc="context_timestamp(datetime.datetime.now()).strftime('%d %b %Y %H:%M')"/>
+                        &#160;|&#160; Company: <t t-esc="res_company.name"/>
+                        &#160;|&#160; Total lines: <t t-esc="len(docs)"/>
+                    </div>
+
+                    <!-- Group by area -->
+                    <t t-set="areas" t-value="docs.mapped('vendor_area')"/>
+                    <t t-foreach="list(dict.fromkeys(docs.mapped('vendor_area')))" t-as="area">
+                        <t t-set="area_lines" t-value="docs.filtered(lambda r: r.vendor_area == area)"/>
+
+                        <div class="area-header">Area: <t t-esc="area"/></div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:7%">SKU</th>
+                                    <th style="width:22%">Product Name</th>
+                                    <th style="width:18%">Vendor</th>
+                                    <th style="width:10%">Mobile</th>
+                                    <th style="width:8%" class="text-right">Ordered</th>
+                                    <th style="width:8%" class="text-right">In Stock</th>
+                                    <th style="width:8%" class="text-right">Deficit</th>
+                                    <th style="width:9%" class="text-right">Avg Cost</th>
+                                    <th style="width:10%" class="text-right">Last Purchase</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="area_lines" t-as="line">
+                                    <tr t-attf-class="#{line.qty_on_hand &lt;= 0 and 'danger' or (line.deficit_qty &gt; 0 and 'warning' or '')}">
+                                        <td><t t-esc="line.default_code or ''"/></td>
+                                        <td><t t-esc="line.product_name or ''"/></td>
+                                        <td>
+                                            <t t-esc="line.vendor_name or 'Unknown'"/>
+                                        </td>
+                                        <td>
+                                            <t t-if="line.vendor_id and line.vendor_id.mobile">
+                                                <t t-esc="line.vendor_id.mobile"/>
+                                            </t>
+                                        </td>
+                                        <td class="text-right"><t t-esc="'%.2f' % line.ordered_qty"/></td>
+                                        <td class="text-right"><t t-esc="'%.2f' % line.qty_on_hand"/></td>
+                                        <td class="text-right">
+                                            <t t-if="line.deficit_qty &gt; 0">
+                                                <t t-esc="'%.2f' % line.deficit_qty"/>
+                                            </t>
+                                            <t t-else="">-</t>
+                                        </td>
+                                        <td class="text-right">
+                                            <t t-esc="'{:,.2f}'.format(line.avg_cost)"/>
+                                        </td>
+                                        <td class="text-right">
+                                            <t t-esc="'{:,.2f}'.format(line.last_purchase_price)"/>
+                                            <t t-if="line.last_purchase_price">&#160;(<t t-esc="'{:,.0f}'.format(line.avg_cost)"/>)</t>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-right">Area Total:</td>
+                                    <td class="text-right">
+                                        <t t-esc="'%.2f' % sum(area_lines.mapped('ordered_qty'))"/>
+                                    </td>
+                                    <td></td>
+                                    <td class="text-right">
+                                        <t t-esc="'%.2f' % sum(area_lines.mapped('deficit_qty'))"/>
+                                    </td>
+                                    <td class="text-right">
+                                        <t t-esc="'{:,.2f}'.format(sum(area_lines.mapped('avg_cost')))"/>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </t>
+
+                    <!-- Grand total -->
+                    <table style="margin-top:10px;">
+                        <tfoot>
+                            <tr>
+                                <td style="width:61%;font-weight:bold;font-size:10px;padding:4px 6px;border-top:2px solid #1a3a5c;">
+                                    Grand Total
+                                </td>
+                                <td style="width:8%;text-align:right;font-weight:bold;font-size:10px;padding:4px 6px;border-top:2px solid #1a3a5c;">
+                                    <t t-esc="'%.2f' % sum(docs.mapped('ordered_qty'))"/>
+                                </td>
+                                <td style="width:8%;border-top:2px solid #1a3a5c;"></td>
+                                <td style="width:8%;text-align:right;font-weight:bold;font-size:10px;padding:4px 6px;border-top:2px solid #1a3a5c;">
+                                    <t t-esc="'%.2f' % sum(docs.mapped('deficit_qty'))"/>
+                                </td>
+                                <td style="width:15%;border-top:2px solid #1a3a5c;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <!-- Page footer -->
+                    <div class="page-footer">
+                        <span><t t-esc="res_company.name"/> — Oversell &amp; Out-of-Stock Report</span>
+                        <span>Page <span class="page"/> of <span class="topage"/></span>
+                    </div>
+
+                </div>
+            </t>
+        </t>
+    </template>
+
+</odoo>
