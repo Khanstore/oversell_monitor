@@ -1,6 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- ─── Kanban View ───────────────────────────────────────────────────── -->
+    <record id="view_oversell_monitor_kanban" model="ir.ui.view">
+        <field name="name">oversell.monitor.line.kanban</field>
+        <field name="model">oversell.monitor.line</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="vendor_name"
+                    class="o_kanban_small_column"
+                    group_create="false"
+                    group_delete="false"
+                    group_edit="false"
+                    quick_create="false">
+
+                <field name="vendor_id"/>
+                <field name="vendor_name"/>
+                <field name="vendor_area"/>
+                <field name="product_id"/>
+                <field name="product_name"/>
+                <field name="default_code"/>
+                <field name="order_id"/>
+                <field name="order_date"/>
+                <field name="order_state"/>
+                <field name="ordered_qty"/>
+                <field name="qty_on_hand"/>
+                <field name="deficit_qty"/>
+                <field name="avg_cost"/>
+                <field name="last_purchase_price"/>
+                <field name="currency_id"/>
+                <field name="restock_eta"/>
+                <field name="delivery_status"/>
+                <field name="open_po_id"/>
+
+                <templates>
+                    <t t-name="card">
+                        <div t-attf-class="o_kanban_color_#{record.qty_on_hand.raw_value &lt;= 0 ? 1 : 2}"/>
+
+                        <div class="oe_kanban_content p-2">
+
+                            <!-- Product image + name -->
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <img t-attf-src="/web/image/product.product/#{record.product_id.raw_value}/image_256"
+                                     class="rounded"
+                                     style="width:80px;height:80px;object-fit:contain;background:#f5f5f5;"
+                                     t-att-alt="record.product_name.value"
+                                     onerror="this.src='/web/static/img/placeholder.png'"/>
+                                <div class="overflow-hidden">
+                                    <div class="fw-bold text-truncate">
+                                        <field name="product_id" widget="many2one"
+                                               options="{'no_open': false}"/>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <t t-if="record.default_code.value">
+                                            [<field name="default_code"/>]
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Order ref + date -->
+                            <div class="small text-muted mb-2">
+                                <field name="order_id" widget="many2one"
+                                       options="{'no_open': false}"/>
+                                <span class="ms-1">&#183; <field name="order_date"/></span>
+                            </div>
+
+                            <!-- Stock / Ordered / Deficit -->
+                            <div class="d-flex gap-1 mb-2 text-center">
+                                <div class="flex-fill bg-light rounded p-1">
+                                    <div class="small text-muted">Ordered</div>
+                                    <div class="fw-bold"><field name="ordered_qty"/></div>
+                                </div>
+                                <div class="flex-fill bg-light rounded p-1">
+                                    <div class="small text-muted">Free Stock</div>
+                                    <div t-attf-class="fw-bold #{record.qty_on_hand.raw_value &lt;= 0 ? 'text-danger' : 'text-warning'}">
+                                        <field name="qty_on_hand"/>
+                                    </div>
+                                </div>
+                                <div class="flex-fill bg-light rounded p-1">
+                                    <div class="small text-muted">Deficit</div>
+                                    <div class="fw-bold text-danger">
+                                        <field name="deficit_qty"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cost -->
+                            <div class="d-flex small text-muted mb-2">
+                                <span>Avg:&#160;<field name="avg_cost" widget="monetary"
+                                       options="{'currency_field': 'currency_id'}"/></span>
+                                <span class="ms-auto">Last:&#160;<field name="last_purchase_price" widget="monetary"
+                                       options="{'currency_field': 'currency_id'}"/></span>
+                            </div>
+
+                            <!-- Badges -->
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                <t t-if="record.vendor_area.value and record.vendor_area.value != 'Unknown'">
+                                    <span class="badge rounded-pill text-bg-secondary small">
+                                        <field name="vendor_area"/>
+                                    </span>
+                                </t>
+                                <t t-if="record.restock_eta.value">
+                                    <span class="badge rounded-pill text-bg-info small">
+                                        ETA: <field name="restock_eta"/>
+                                    </span>
+                                </t>
+                                <t t-if="record.delivery_status.value and record.delivery_status.value != 'none'">
+                                    <span t-attf-class="badge rounded-pill small #{record.delivery_status.value == 'done' ? 'text-bg-success' : record.delivery_status.value == 'assigned' ? 'text-bg-info' : 'text-bg-warning'}">
+                                        <field name="delivery_status"/>
+                                    </span>
+                                </t>
+                                <t t-if="record.open_po_id.value">
+                                    <span class="badge rounded-pill text-bg-primary small">
+                                        PO: <field name="open_po_id"/>
+                                    </span>
+                                </t>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="d-flex align-items-center">
+                                <field name="order_state" widget="badge"
+                                       decoration-success="order_state == 'sale'"
+                                       decoration-info="order_state == 'sent'"
+                                       decoration-muted="order_state == 'draft'"/>
+                                <div class="ms-auto d-flex gap-1">
+                                    <button name="action_view_purchase_history"
+                                            type="object"
+                                            class="btn btn-sm btn-light"
+                                            title="Purchase History">
+                                        <i class="fa fa-history"/>
+                                    </button>
+                                    <button name="action_create_po"
+                                            type="object"
+                                            class="btn btn-sm btn-primary"
+                                            title="Create Purchase Order">
+                                        <i class="fa fa-shopping-cart"/>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ─── List View ─────────────────────────────────────────────────────── -->
     <record id="view_oversell_monitor_list" model="ir.ui.view">
         <field name="name">oversell.monitor.line.list</field>
         <field name="model">oversell.monitor.line</field>
@@ -12,12 +158,9 @@
                   create="false" edit="false" delete="false">
 
                 <header>
-                    <button name="action_create_po"
-                            string="Create Purchase Order"
-                            type="object"
-                            class="btn-primary"/>
-                    <button name="action_send_vendor_alert"
-                            string="Send Vendor Alert"
+                    <button name="action_create_po" string="Create Purchase Order"
+                            type="object" class="btn-primary"/>
+                    <button name="action_send_vendor_alert" string="Send Vendor Alert"
                             type="object"/>
                 </header>
 
@@ -37,8 +180,8 @@
                 <field name="vendor_area" string="Area" optional="show"/>
                 <field name="warehouse_id" string="Warehouse" optional="hide"/>
                 <field name="company_id" string="Company" optional="hide"/>
-                <field name="ordered_qty" string="Ordered" sum="Total Ordered"/>
-                <field name="qty_on_hand" string="In Stock"/>
+                <field name="ordered_qty" string="Outstanding" sum="Total Ordered"/>
+                <field name="qty_on_hand" string="Free Stock"/>
                 <field name="deficit_qty" string="Deficit" sum="Total Deficit"
                        decoration-danger="deficit_qty &gt; 0"/>
                 <field name="min_qty_threshold" string="Min Threshold" optional="hide"/>
@@ -60,17 +203,14 @@
                 <field name="last_purchase_price" string="Last Purchase" widget="monetary"
                        options="{'currency_field': 'currency_id'}" optional="show"/>
                 <field name="currency_id" column_invisible="1"/>
-
-                <button name="action_view_purchase_history"
-                        string="Purchase History"
-                        type="object"
-                        icon="fa-history"
+                <button name="action_view_purchase_history" string="Purchase History"
+                        type="object" icon="fa-history"
                         title="View purchase history for this product"/>
-
             </list>
         </field>
     </record>
 
+    <!-- ─── Search View ───────────────────────────────────────────────────── -->
     <record id="view_oversell_monitor_search" model="ir.ui.view">
         <field name="name">oversell.monitor.line.search</field>
         <field name="model">oversell.monitor.line</field>
@@ -106,10 +246,13 @@
                 <separator/>
                 <filter string="Confirmed Orders" name="filter_confirmed"
                         domain="[('order_state', 'in', ['sale', 'done'])]"/>
+                <separator/>
+                <filter string="Exclude Done Deliveries" name="filter_exclude_done"
+                        domain="[('delivery_status', '!=', 'done')]"/>
 
                 <group expand="1" string="Group By">
                     <filter string="Vendor" name="group_vendor"
-                            context="{'group_by': 'vendor_id'}"/>
+                            context="{'group_by': 'vendor_name'}"/>
                     <filter string="Area" name="group_area"
                             context="{'group_by': 'vendor_area'}"/>
                     <filter string="Warehouse" name="group_warehouse"
@@ -128,16 +271,18 @@
         </field>
     </record>
 
+    <!-- ─── Action ────────────────────────────────────────────────────────── -->
     <record id="action_oversell_monitor" model="ir.actions.act_window">
         <field name="name">Oversell &amp; Out-of-Stock Orders</field>
         <field name="res_model">oversell.monitor.line</field>
-        <field name="view_mode">list</field>
-        <field name="view_id" ref="view_oversell_monitor_list"/>
+        <field name="view_mode">kanban,list</field>
+        <field name="views" eval="[(ref('view_oversell_monitor_kanban'), 'kanban'), (ref('view_oversell_monitor_list'), 'list')]"/>
         <field name="search_view_id" ref="view_oversell_monitor_search"/>
         <field name="context">{
-            'search_default_filter_today': 1,
-            'search_default_group_vendor': 1,
-            'search_default_filter_confirmed': 1
+            'search_default_filter_week': 1,
+            'search_default_group_area': 1,
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_exclude_done': 1
         }</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

@@ -7,16 +7,11 @@ class CreatePoWizardLine(models.TransientModel):
     _description = 'PO Wizard Line'
 
     wizard_id = fields.Many2one('oversell.create.po.wizard', string='Wizard')
-    product_id = fields.Many2one('product.product', string='Product', required=True)
+    product_id = fields.Many2one('product.product', string='Product')
     vendor_id = fields.Many2one('res.partner', string='Vendor')
     deficit_qty = fields.Float(string='Deficit Qty', digits='Product Unit of Measure')
     qty_to_order = fields.Float(string='Qty to Order', digits='Product Unit of Measure')
     last_purchase_price = fields.Float(string='Unit Price', digits='Product Price')
-
-    @api.onchange('deficit_qty')
-    def _onchange_deficit_qty(self):
-        if self.deficit_qty and not self.qty_to_order:
-            self.qty_to_order = self.deficit_qty
 
 
 class CreatePoWizard(models.TransientModel):
@@ -31,46 +26,67 @@ class CreatePoWizard(models.TransientModel):
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
-        if 'line_ids' in fields_list and 'default_line_ids' in self.env.context:
-            lines = []
-            for l in self.env.context['default_line_ids']:
-                vals = l[2] if len(l) == 3 else {}
-                vals['qty_to_order'] = vals.get('deficit_qty', 0)
-                lines.append((0, 0, vals))
+        if 'line_ids' not in fields_list:
+            return res
+
+        active_ids = self.env.context.get('active_ids', [])
+        active_model = self.env.context.get('active_model', '')
+
+        if not active_ids or active_model != 'oversell.monitor.line':
+            return res
+
+        # Read directly from the monitor view records
+        records = self.env['oversell.monitor.line'].browse(active_ids)
+        lines = []
+        for rec in records:
+            if not rec.product_id:
+                continue
+            lines.append((0, 0, {
+                'product_id': rec.product_id.id,
+                'vendor_id': rec.vendor_id.id if rec.vendor_id else False,
+                'deficit_qty': rec.deficit_qty,
+                'qty_to_order': rec.deficit_qty if rec.deficit_qty > 0 else 0.0,
+                'last_purchase_price': rec.last_purchase_price,
+            }))
+
+        if lines:
             res['line_ids'] = lines
         return res
 
     def action_create_po(self):
-        if not self.line_ids:
-            raise UserError(_('No products to order.'))
+        valid_lines = self.line_ids.filtered(
+            lambda l: l.product_id and l.qty_to_order > 0)
+        if not valid_lines:
+            raise UserError(_(
+                'No valid products to order. '
+                'Please ensure each line has a product and quantity greater than zero.'))
 
         delivery_date = self.scheduled_date or fields.Date.today()
 
-        # Group lines by vendor
+        missing_vendor_lines = valid_lines.filtered(lambda l: not l.vendor_id)
+        if missing_vendor_lines:
+            products = ', '.join(missing_vendor_lines.mapped('product_id.display_name'))
+            raise UserError(_(
+                'A vendor is required before creating a purchase order for: %s. '
+                'Select a valid supplier on each line.' % products))
+
         by_vendor = {}
-        for line in self.line_ids:
-            vid = line.vendor_id.id if line.vendor_id else False
+        for line in valid_lines:
+            vid = line.vendor_id.id
             by_vendor.setdefault(vid, []).append(line)
 
         po_ids = []
         for vendor_id, lines in by_vendor.items():
-            po_line_vals = []
-            for l in lines:
-                po_line_vals.append((0, 0, {
+            po = self.env['purchase.order'].create({
+                'partner_id': vendor_id,
+                'company_id': self.env.company.id,
+                'date_planned': delivery_date,
+                'order_line': [(0, 0, {
                     'product_id': l.product_id.id,
                     'product_qty': l.qty_to_order,
-                    'price_unit': l.last_purchase_price,
                     'date_planned': delivery_date,
-                    'name': l.product_id.display_name or '',
-                }))
-
-            po_vals = {
-                'partner_id': vendor_id or self.env.company.partner_id.id,
-                'date_planned': delivery_date,
-                'order_line': po_line_vals,
-            }
-            po = self.env['purchase.order'].create(po_vals)
-            # Add note as internal message if provided
+                }) for l in lines],
+            })
             if self.note:
                 po.message_post(body=self.note)
             po_ids.append(po.id)

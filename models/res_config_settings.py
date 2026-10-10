@@ -1,38 +1,74 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 
-class ResConfigSettings(models.TransientModel):
-    _inherit = 'res.config.settings'
+class OversellSettings(models.TransientModel):
+    """Dedicated settings model — completely separate from res.config.settings
+    so it never interferes with General Settings."""
+    _name = 'oversell.monitor.settings'
+    _description = 'Oversell Monitor Settings'
 
-    oversell_digest_enabled = fields.Boolean(
+    digest_enabled = fields.Boolean(
         string='Enable Scheduled Digest Email',
-        config_parameter='oversell_monitor.digest_enabled',
-        default=False,
+        default=lambda self: self._get_param('digest_enabled', False),
     )
-    oversell_digest_frequency = fields.Selection([
+    digest_frequency = fields.Selection([
         ('daily', 'Daily'), ('weekly', 'Weekly'),
     ], string='Digest Frequency',
-        config_parameter='oversell_monitor.digest_frequency',
-        default='daily',
+        default=lambda self: self._get_param('digest_frequency', 'daily'),
     )
-    oversell_digest_recipient_ids = fields.Many2many(
-        'res.partner',
-        string='Digest Recipients',
-        relation='oversell_digest_partner_rel',
+    global_min_threshold = fields.Float(
+        string='Global Min Stock Threshold',
+        default=lambda self: float(self._get_param('global_min_threshold', 0)),
+        help='Flag oversell risk when stock falls below this quantity. 0 = disabled.',
     )
-    oversell_global_min_threshold = fields.Float(
-        string='Global Minimum Stock Threshold',
-        config_parameter='oversell_monitor.global_min_threshold',
-        default=0.0,
-        help='Flag oversell risk when stock falls below this level (used when no product-specific threshold is set).',
-    )
-    oversell_auto_notify_customer = fields.Boolean(
-        string='Auto-notify Customers on Oversell',
-        config_parameter='oversell_monitor.auto_notify_customer',
-        default=False,
-    )
-    oversell_auto_notify_vendor = fields.Boolean(
+    auto_notify_vendor = fields.Boolean(
         string='Auto-notify Vendors on Oversell',
-        config_parameter='oversell_monitor.auto_notify_vendor',
-        default=False,
+        default=lambda self: self._get_param('auto_notify_vendor', False),
     )
+    auto_notify_customer = fields.Boolean(
+        string='Auto-notify Customers on Oversell',
+        default=lambda self: self._get_param('auto_notify_customer', False),
+    )
+
+    def _get_param(self, key, default=False):
+        val = self.env['ir.config_parameter'].sudo().get_param(
+            f'oversell_monitor.{key}')
+        if val is False or val is None:
+            return default
+        if isinstance(default, bool):
+            return val == 'True'
+        return val
+
+    def _set_param(self, key, value):
+        self.env['ir.config_parameter'].sudo().set_param(
+            f'oversell_monitor.{key}', str(value))
+
+    def action_save(self):
+        self.ensure_one()
+        self._set_param('digest_enabled', self.digest_enabled)
+        self._set_param('digest_frequency', self.digest_frequency)
+        self._set_param('global_min_threshold', self.global_min_threshold)
+        self._set_param('auto_notify_vendor', self.auto_notify_vendor)
+        self._set_param('auto_notify_customer', self.auto_notify_customer)
+
+        # Keep the scheduled action in sync with the saved settings.
+        cron = self.env.ref('oversell_monitor.ir_cron_oversell_digest', raise_if_not_found=False)
+        if cron:
+            cron.sudo().write({
+                'active': self.digest_enabled,
+                'interval_number': 7 if self.digest_frequency == 'weekly' else 1,
+                'interval_type': 'days',
+            })
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Settings Saved',
+                'message': 'Oversell Monitor settings have been saved.',
+                'type': 'success',
+                'sticky': False,
+            },
+        }
+
+    def action_discard(self):
+        return {'type': 'ir.actions.act_window_close'}

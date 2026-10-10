@@ -1,10 +1,10 @@
 {
     'name': 'Oversell & Out-of-Stock Monitor',
-    'version': '18.0.2.0.0',
+    'version': '18.0.2.1.1',
     'category': 'Inventory/Inventory',
     'summary': 'Track, alert, and reorder oversold eCommerce products grouped by vendor and area',
     'description': """
-Oversell & Out-of-Stock Monitor v2
+Oversell & Out-of-Stock Monitor v2.1
 ====================================
 Full-featured oversell management for Odoo 18 eCommerce:
 
@@ -18,8 +18,13 @@ Full-featured oversell management for Odoo 18 eCommerce:
 - Delivery status column (backorder tracking)
 - Minimum stock threshold warnings
 - Scheduled daily/weekly digest email
-- Multi-warehouse and multi-company support
-- Configurable settings page
+- Warehouse-scoped free-stock reporting with reservation awareness
+- Includes sent quotations in live shortage monitoring, while confirmed orders receive stock-allocation priority
+- Outstanding demand allocation across orders, oldest first
+- Configurable minimum-stock threshold in the live report
+- Safer purchase-order wizard validation
+- Configurable digest schedule and improved email handling
+- Multi-company safeguards (requires deployment testing)
     """,
     'author': 'Custom',
     'depends': [
@@ -39,6 +44,7 @@ Full-featured oversell management for Odoo 18 eCommerce:
         'views/oversell_dashboard_views.xml',
         'wizard/create_po_wizard_views.xml',
         'wizard/send_alert_wizard_views.xml',
+        'report/oversell_report.xml',
         'views/oversell_monitor_menus.xml',
     ],
     'assets': {

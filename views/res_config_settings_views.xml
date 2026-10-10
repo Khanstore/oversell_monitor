@@ -1,24 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Standalone settings form for Oversell Monitor -->
     <record id="view_oversell_config_form" model="ir.ui.view">
-        <field name="name">oversell.monitor.config.form</field>
-        <field name="model">res.config.settings</field>
+        <field name="name">oversell.monitor.settings.form</field>
+        <field name="model">oversell.monitor.settings</field>
         <field name="arch" type="xml">
-            <form string="Oversell Monitor Settings" class="oe_form_configuration">
+            <form string="Oversell Monitor Settings">
                 <sheet>
-                    <div class="o_setting_container">
-
-                        <div class="o_settings_section">
+                    <div class="o_settings_section">
                             <h2>Digest Emails</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
-                                        <field name="oversell_digest_enabled" widget="boolean_toggle"/>
+                                        <field name="digest_enabled" widget="boolean_toggle"/>
                                     </div>
                                     <div class="o_setting_right_pane">
-                                        <label for="oversell_digest_enabled" string="Enable Scheduled Digest"/>
+                                        <label for="digest_enabled" string="Enable Scheduled Digest"/>
                                         <div class="text-muted">
                                             Send a summary of oversell lines to stock managers on a schedule.
                                         </div>
@@ -27,8 +24,8 @@
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane"/>
                                     <div class="o_setting_right_pane">
-                                        <label for="oversell_digest_frequency" string="Digest Frequency"/>
-                                        <field name="oversell_digest_frequency"/>
+                                        <label for="digest_frequency" string="Digest Frequency"/>
+                                        <field name="digest_frequency"/>
                                     </div>
                                 </div>
                             </div>
@@ -36,15 +33,15 @@
 
                         <div class="o_settings_section">
                             <h2>Stock Thresholds</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane"/>
                                     <div class="o_setting_right_pane">
-                                        <label for="oversell_global_min_threshold" string="Global Min Stock Threshold"/>
+                                        <label for="global_min_threshold" string="Global Min Stock Threshold"/>
                                         <div class="text-muted">
                                             Flag risk when stock falls below this level. 0 = disabled.
                                         </div>
-                                        <field name="oversell_global_min_threshold"/>
+                                        <field name="global_min_threshold"/>
                                     </div>
                                 </div>
                             </div>
@@ -52,13 +49,13 @@
 
                         <div class="o_settings_section">
                             <h2>Automatic Notifications</h2>
-                            <div class="row mt16">
+                            <div class="row mt16 o_settings_container">
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
-                                        <field name="oversell_auto_notify_vendor" widget="boolean_toggle"/>
+                                        <field name="auto_notify_vendor" widget="boolean_toggle"/>
                                     </div>
                                     <div class="o_setting_right_pane">
-                                        <label for="oversell_auto_notify_vendor" string="Auto-notify Vendors"/>
+                                        <label for="auto_notify_vendor" string="Auto-notify Vendors"/>
                                         <div class="text-muted">
                                             Email the primary vendor automatically when an oversell occurs.
                                         </div>
@@ -66,10 +63,10 @@
                                 </div>
                                 <div class="col-12 col-lg-6 o_setting_box">
                                     <div class="o_setting_left_pane">
-                                        <field name="oversell_auto_notify_customer" widget="boolean_toggle"/>
+                                        <field name="auto_notify_customer" widget="boolean_toggle"/>
                                     </div>
                                     <div class="o_setting_right_pane">
-                                        <label for="oversell_auto_notify_customer" string="Auto-notify Customers"/>
+                                        <label for="auto_notify_customer" string="Auto-notify Customers"/>
                                         <div class="text-muted">
                                             Email the customer automatically when their order is oversold.
                                         </div>
@@ -77,14 +74,12 @@
                                 </div>
                             </div>
                         </div>
-
-                    </div>
                 </sheet>
                 <footer>
-                    <button string="Save" type="object" name="execute"
-                            class="btn-primary" data-hotkey="s"/>
-                    <button string="Discard" type="object" name="cancel"
-                            class="btn-secondary" special="cancel"/>
+                    <button string="Save" name="action_save"
+                            type="object" class="btn-primary"/>
+                    <button string="Discard" name="action_discard"
+                            type="object" class="btn-secondary"/>
                 </footer>
             </form>
         </field>
@@ -92,10 +87,10 @@
 
     <record id="action_oversell_config" model="ir.actions.act_window">
         <field name="name">Oversell Monitor Settings</field>
-        <field name="res_model">res.config.settings</field>
+        <field name="res_model">oversell.monitor.settings</field>
         <field name="view_mode">form</field>
         <field name="view_id" ref="view_oversell_config_form"/>
-        <field name="target">inline</field>
+        <field name="target">current</field>
     </record>
 
 </odoo>

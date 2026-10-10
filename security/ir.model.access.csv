@@ -6,3 +6,4 @@ access_oversell_create_po_wizard,oversell.create.po.wizard user,model_oversell_c
 access_oversell_create_po_wizard_line,oversell.create.po.wizard.line user,model_oversell_create_po_wizard_line,base.group_user,1,1,1,1
 access_oversell_send_alert_wizard,oversell.send.alert.wizard user,model_oversell_send_alert_wizard,base.group_user,1,1,1,1
 access_oversell_send_alert_wizard_line,oversell.send.alert.wizard.line user,model_oversell_send_alert_wizard_line,base.group_user,1,1,1,1
+access_oversell_settings,oversell.monitor.settings user,model_oversell_monitor_settings,base.group_user,1,1,1,1
