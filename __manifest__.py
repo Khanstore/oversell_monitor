@@ -1,6 +1,6 @@
 {
     'name': 'Oversell & Out-of-Stock Monitor',
-    'version': '18.0.2.1.1',
+    'version': '18.0.2.1.3',
     'category': 'Inventory/Inventory',
     'summary': 'Track, alert, and reorder oversold eCommerce products grouped by vendor and area',
     'description': """
@@ -20,6 +20,7 @@ Full-featured oversell management for Odoo 18 eCommerce:
 - Scheduled daily/weekly digest email
 - Warehouse-scoped free-stock reporting with reservation awareness
 - Includes sent quotations in live shortage monitoring, while confirmed orders receive stock-allocation priority
+- Printable vendor/shortage report: A4 landscape with narrow margins and requested business columns
 - Outstanding demand allocation across orders, oldest first
 - Configurable minimum-stock threshold in the live report
 - Safer purchase-order wizard validation

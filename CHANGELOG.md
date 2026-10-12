@@ -1,3 +1,15 @@
+## 18.0.2.1.3 — 2026-10-12
+- Fix: remove unsupported `formatLang` calls from the QWeb PDF report, which caused `TypeError: 'NoneType' object is not callable` during rendering.
+- Format shortage quantities with a safe numeric format and use Odoo's monetary field widget for average and last-purchase prices.
+- Validation: XML syntax and ZIP integrity checked; live Odoo PDF rendering still requires staging verification.
+
+## 18.0.2.1.2 — 2026-10-11
+- Updated the existing QWeb PDF report to match the requested vendor/shortage print layout.
+- Set A4 landscape with narrow 12.7 mm margins.
+- Added Place, Vendor and Mobile Number, Product Variant, Shortage, Avg Price, Last Purchase and Comment columns.
+- Comment includes order reference/status and restock ETA when available.
+- Kept the report bound to the Oversell Monitor model so it is available from the list Print menu.
+
 # Changelog
 
 ## 18.0.2.1.1 — 2026-10-10

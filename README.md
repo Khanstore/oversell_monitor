@@ -2,7 +2,7 @@
 
 ## Release
 
-Version: `18.0.2.1.1`
+Version: `18.0.2.1.2`
 
 ## Main improvements in this release
 
@@ -55,3 +55,13 @@ Version: `18.0.2.1.1`
 - History is a confirmation-time shortage snapshot; stock reservation races and concurrent order confirmations need transaction-level integration tests.
 - Dashboard aggregates should be reviewed because a live report can contain one row per affected sales line.
 - This release has been syntax-checked locally but has not been run inside Odoo. Treat it as a staging candidate, not a production-certified build.
+
+
+## Printable vendor report
+
+Version `18.0.2.1.2` updates the existing QWeb PDF report to match the requested printed layout: A4 landscape, narrow margins (12.7 mm), centered title/date, clear table borders, and columns for Place, Vendor and Mobile Number, Product Variant, Shortage, Avg Price, Last Purchase, and Comment. The Comment column includes the source order/status and restock ETA when available. From the Oversell Monitor list, select records if desired and use **Print → Stock Shortage & Vendor Report**. The report is based on selected report records when selection is used; it does not create a separate static spreadsheet.
+
+
+### v18.0.2.1.3 report hotfix (2026-10-12)
+
+Fixed QWeb PDF rendering by removing `formatLang` calls from the printable shortage report. Monetary values use Odoo's monetary widget; shortage quantities use numeric formatting. Please upgrade on a staging database and verify PDF rendering before production deployment.
